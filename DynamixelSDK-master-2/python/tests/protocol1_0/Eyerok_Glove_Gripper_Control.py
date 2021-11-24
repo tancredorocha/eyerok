@@ -11,7 +11,7 @@ import os
 import time
 import threading
 import concurrent.futures
-
+import keyboard
 if os.name == 'nt':
     import msvcrt
     def getch():
@@ -38,15 +38,15 @@ ADDR_MX_MOVE_SPEED         = 32
 ADDR_MX_CCW_ANG_LMT        = 8
 ADDR_MX_PRESENT_SPEED      = 38
 ADDR_MX_TORQUE_LIMIT       = 34
-
+ADDR_MX_PRESSENT_LOAD      = 40
 # Protocol version
 PROTOCOL_VERSION            = 1.0               # See which protocol version is used in the Dynamixel
 
 # Default setting
 DXL_0                       =  0                # Dynamixel ID : 0
 DXL_1                       =  1                # Dynamixel ID : 1
-BAUDRATE                    = 2000000           # Dynamixel default baudrate : 57600, Increased to 2m, maybe better latency
-DEVICENAME                  = '/dev/tty.usbserial-FT62AGHG'            # Windows    #'/dev/tty.usbserial-FT62AGHG' # Macbook    # Check which port is being used on your controller
+BAUDRATE                    = 1000000           # Dynamixel default baudrate : 57600, Increased to 2m, maybe better latency
+DEVICENAME                  = 'COM4'            # Windows    #'/dev/tty.usbserial-FT62AGHG' # Macbook    # Check which port is being used on your controller
                                                 # ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
 
 TORQUE_ENABLE               = 1                 # Value for enabling the torque
@@ -56,7 +56,99 @@ DXL_MAXIMUM_POSITION_VALUE  = 1023              # and this value (note that the 
 DXL_MOVING_STATUS_THRESHOLD = 10                # Dynamixel moving status threshold
 
 DXL_HOME                    = 512               # Home Value for O degree of motors
-           
+
+def run(portHandler,packetHandler):
+    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_CCW_ANG_LMT, 0)
+    dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 0)
+    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_MOVE_SPEED,70)
+    dxl_0_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
+    dxl_1_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_SPEED)
+    i=0
+    getdelay = True
+    while True:
+        if keyboard.is_pressed("q"):
+            shut_down(portHandler,packetHandler)         # Calls Shutdown Function
+            break
+
+        
+        dxl_0_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
+        dxl_1_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_SPEED)
+        
+        dxl_0_tor_limit, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_TORQUE_LIMIT)
+        dxl_1_tor_limit, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_TORQUE_LIMIT)
+
+        dxl_0_present_load, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESSENT_LOAD)
+        dxl_1_present_load, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESSENT_LOAD)
+        
+
+
+    
+        
+
+
+        dirMove0 = dxl_0_present_speed>1023
+        dirMove1 = dxl_1_present_speed>1023
+        dirTor0 = dxl_0_present_load>1023
+        dirTor1 = dxl_1_present_load>1023
+
+        if dirMove0:
+            dxl_0_present_speed -= 1023
+        if dirMove1:
+            dxl_1_present_speed -= 1023
+
+        if dirTor0:
+            dxl_0_present_load -= 1023
+        if dirTor1:
+            dxl_1_present_load -= 1023
+
+        dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)
+        dxl_1_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_POSITION)
+            
+        
+        # sendspeed += dxl_0_present_speed-dxl_1_present_speed
+        
+        
+        # if sendspeed == 0 and abs(dxl_0_present_position-dxl_1_present_position)>5:
+        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_GOAL_POSITION, dxl_0_present_position)
+        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 1023) # Writes Motor 0 to Joint Mode
+        #     while abs(dxl_0_present_position-dxl_1_present_position)>5:
+        #         pass
+        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 0) # Writes Motor 0 to Wheel Mode
+
+        sendspeed = 2*dxl_0_present_speed
+        a = dxl_0_present_position>dxl_1_present_position
+        b = not dirMove0
+        
+        # else: 
+        if abs(dxl_0_present_position-dxl_1_present_position)<5:
+            pass
+        elif (a and (not b)) or ((not a) and b):
+            sendspeed = int(sendspeed-sendspeed*sendspeed/500)
+        else:
+            sendspeed = int(sendspeed+sendspeed*sendspeed/500)   
+        
+        dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,int(dirMove0)*1023 + sendspeed)
+
+        sendtoque = 2*dxl_1_present_load
+
+        a = dxl_0_present_load>dxl_1_present_load
+        b = not dirTor1
+        # else: 
+        if abs(dxl_0_present_load-dxl_1_present_load)<5:
+            pass
+        elif (a and (not b)) or ((not a) and b):
+            sendtoque = int(sendtoque-sendtoque*sendtoque/500)
+        else:
+            sendtoque = int(sendtoque+sendtoque*sendtoque/500) 
+
+        print("Tor0:"+str(dxl_0_tor_limit)+"\t\tToq1:"+str(dxl_1_present_load)+"\t\tLimit0:"+str(dxl_0_tor_limit)+"\t\tLimit1:"+str(dxl_1_tor_limit))
+
+        dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_TORQUE_LIMIT,int(dirTor0)*1023 + sendtoque)
+
+        # print("Speed0:"+str(dxl_0_present_speed)+"\tSpeed1:"+str(dxl_1_present_speed)+"\tPos0:"+str(dxl_0_present_position)+"\tPos1:"+str(dxl_1_present_position)+"\tSendspeed:"+str(sendspeed))
+        
+
+
 def start_up():                                 # Initilizes connection to motors and sets starting parmeters.
     
     portHandler = PortHandler(DEVICENAME)       # Initialize PortHandler and set port path
@@ -94,11 +186,11 @@ def start_up():                                 # Initilizes connection to motor
     else:
         print("Dynamixel#%d has been successfully connected" % DXL_1)
     
-    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler,DXL_0,ADDR_MX_TORQUE_LIMIT,1023) # Sets Torque of Motor 0 to Max
+    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler,DXL_0,ADDR_MX_TORQUE_LIMIT,1000) # Sets Torque of Motor 0 to Max
     torquelimit0, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler,DXL_0,ADDR_MX_TORQUE_LIMIT) # Reads Torque of Motor 0 
     print("Dynamixel#%d Torque Limit is:" % DXL_0, torquelimit0)
           
-    dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler,DXL_1,ADDR_MX_TORQUE_LIMIT,1023) # Sets Torque of Motor 0 to Max
+    dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler,DXL_1,ADDR_MX_TORQUE_LIMIT,1000) # Sets Torque of Motor 0 to Max
     torquelimit1, dxl_comm_result1, dxl_error1 = packetHandler.read2ByteTxRx(portHandler,DXL_1,ADDR_MX_TORQUE_LIMIT) # Reads Torque of Motor 1
     print("Dynamixel#%d Torque Limit is:" % DXL_1, torquelimit1)
     
@@ -117,10 +209,16 @@ def start_up():                                 # Initilizes connection to motor
         if abs(DXL_HOME - tol) < 5:
             break
     print('Motors have successfully started')
-    
-    return portHandler,packetHandler
+    print("Press any key to continue! (or press ESC to quit!)")
+    if getch() == chr(0x1b):
+        shut_down(portHandler,packetHandler)
+    else:
+        run(portHandler,packetHandler)
 
-def shut_down():                                # Terminates connection to motors.
+    
+    
+    
+def shut_down(portHandler,packetHandler):                                # Terminates connection to motors.
     
     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_MOVE_SPEED, 0)
     dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 0)
@@ -140,86 +238,9 @@ def shut_down():                                # Terminates connection to motor
     portHandler.closePort()                     # Close port
     print("Successfully closed the port")
     
-    return portHandler,packetHandler
 
     
-portHandler,packetHandler = start_up()          # Calls Startup Function 
+start_up()          # Calls Startup Function 
 
-while True:
-
-    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_CCW_ANG_LMT, 0)
-    dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 0)
-    dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)
-    
-    print("Press any key to continue! (or press ESC to quit!)")
-    if getch() == chr(0x1b):
-        break
-    while abs(dxl_0_present_position-1023)>DXL_MOVING_STATUS_THRESHOLD:
-           
-        try:                                    
-            dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)    # Read present position Motor 0
-            dxl_1_present_position, dxl_comm_result1, dxl_error1 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_POSITION)    # Read present position Motor 1
-            speed0,dxl_comm_result1, dxl_error1 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
-            speed1,dxl_comm_result1, dxl_error1 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
-            if speed0>1023:
-                temp = speed0 - 1023
-                speed= 1023 + 4*temp
-            else:
-                speed0*=2
-        except Exception:
-            print(Exception)
-            print("Position out of measureable range 0")
-        if dxl_comm_result0 != COMM_SUCCESS:
-            print("%s" % packetHandler.getTxRxResult(dxl_comm_result0))
-        elif dxl_error0 != 0:
-            print("%s" % packetHandler.getRxPacketError(dxl_error0))
-    
-        # print("[ID:%03d] PresentPos:%03d" % (DXL_0, dxl_0_present_position))
-        # print("Delta %03d"%(dxl_0_present_position-dxl_1_present_position))
-        dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,0)
-        try:
-            if abs(dxl_0_present_position - dxl_1_present_position) > 5:
-                 
-                dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,speed0)
-                
-            else:
-                dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,0)
-                
-            
-#             try:
-#                 if dxl_0_present_position < dxl_1_present_position:
-#                     dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 2047)
-#                     if abs(dxl_0_present_position - dxl_1_present_position) > 5:
-#                         dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 1024)
-#                 elif dxl_0_present_position > dxl_1_present_position:
-#                     dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 1023)
-#                     if abs(dxl_0_present_position - dxl_1_present_position) > 5:
-#                         dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 0)
-#                 else:
-#                     dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED, 0)
-# #                dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_GOAL_POSITION, 1023-dxl_0_present_position)      # Write Motor 0 present position to Motor 1
-                
-        except Exception as err:
-            print(err)
-            print("Position out of measureable range 1")
-        if dxl_comm_result1 != COMM_SUCCESS:
-            print("Result 0: %s" % packetHandler.getTxRxResult(dxl_comm_result0))
-            print("Result 1: %s" % packetHandler.getTxRxResult(dxl_comm_result1))
-        elif dxl_error1 != 0:
-            print("Error: %s" % packetHandler.getRxPacketError(dxl_error0))
-            print("Error: %s" % packetHandler.getRxPacketError(dxl_error1))
-    
-        # print("[ID:%03d] PresentPos:%03d" % (DXL_1, dxl_1_present_position))
-        print("DXL_0 present speed %03d: "%speed0)
-        print("DXL_1 present speed %03d: "%speed1)
-
-
-    print("Any key to restart esc to exit")
-    if getch() == chr(0x1b):
-        break
-    else:
-        pass 
-
-portHandler,packetHandler = shut_down()         # Calls Shutdown Function
 
 
