@@ -63,25 +63,23 @@ DXL_HOME                    = 799               # Home Value for O degree of mot
 def run(portHandler,packetHandler):
     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_CCW_ANG_LMT, 0)
     dxl_comm_result1, dxl_error1 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 0)
-    dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_MOVE_SPEED,70)
     dxl_0_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
     dxl_1_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_SPEED)
+    dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)
+    dxl_1_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_POSITION)
+    dxl_0_present_position_range = (dxl_0_present_position-DXL_0_MINIMUM_POSITION_VALUE)/(DXL_0_MAXIMUM_POSITION_VALUE-DXL_0_MINIMUM_POSITION_VALUE)
+    dxl_1_present_position_range = (dxl_1_present_position-DXL_1_MINIMUM_POSITION_VALUE)/(DXL_1_MAXIMUM_POSITION_VALUE-DXL_1_MINIMUM_POSITION_VALUE)
+    
     i=0
     getdelay = True
     while True:
         if keyboard.is_pressed("q"):
             shut_down(portHandler,packetHandler)         # Calls Shutdown Function
             break
-
         last_dxl_1_present_speed = dxl_1_present_speed
         dxl_0_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_SPEED)
         dxl_1_present_speed, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_SPEED)
         
-        dxl_0_tor_limit, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_TORQUE_LIMIT)
-        dxl_1_tor_limit, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_TORQUE_LIMIT)
-
-        dxl_0_present_load, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESSENT_LOAD)
-        dxl_1_present_load, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESSENT_LOAD)
         
 
 
@@ -89,38 +87,30 @@ def run(portHandler,packetHandler):
         
 
 
-        dirMove0 = dxl_0_present_speed>1023
-        dirMove1 = dxl_1_present_speed>1023
-        dirTor0 = dxl_0_present_load>1023
-        dirTor1 = dxl_1_present_load>1023
+        
+
+
+        
+       
+        dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)
+        dxl_1_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_POSITION)
+
+        last_dxl_0_present_position_range=dxl_0_present_position_range
+        last_dxl_1_present_position_range=dxl_1_present_position_range  
+        dxl_0_present_position_range = (dxl_0_present_position-DXL_0_MINIMUM_POSITION_VALUE)/(DXL_0_MAXIMUM_POSITION_VALUE-DXL_0_MINIMUM_POSITION_VALUE)
+        dxl_1_present_position_range = (dxl_1_present_position-DXL_1_MINIMUM_POSITION_VALUE)/(DXL_1_MAXIMUM_POSITION_VALUE-DXL_1_MINIMUM_POSITION_VALUE)
+        # sendspeed += dxl_0_present_speed-dxl_1_present_speed
+        dirMove0 = dxl_0_present_position_range-last_dxl_0_present_position_range<0
+        dirMove1 = dxl_1_present_position_range-last_dxl_1_present_position_range<0
         # print(dxl_0_present_speed)
         if dirMove0:
             dxl_0_present_speed -= 1023
         if dirMove1:
             dxl_1_present_speed -= 1023
-
-        if dirTor0:
-            dxl_0_present_load -= 1023
-        if dirTor1:
-            dxl_1_present_load -= 1023
-
-        dxl_0_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_0, ADDR_MX_PRESENT_POSITION)
-        dxl_1_present_position, dxl_comm_result0, dxl_error0 = packetHandler.read2ByteTxRx(portHandler, DXL_1, ADDR_MX_PRESENT_POSITION)
-            
-        dxl_0_present_position_range = (dxl_0_present_position-DXL_0_MINIMUM_POSITION_VALUE)/(DXL_0_MAXIMUM_POSITION_VALUE-DXL_0_MINIMUM_POSITION_VALUE)
-        dxl_1_present_position_range = (dxl_1_present_position-DXL_1_MINIMUM_POSITION_VALUE)/(DXL_1_MAXIMUM_POSITION_VALUE-DXL_1_MINIMUM_POSITION_VALUE)
-        # sendspeed += dxl_0_present_speed-dxl_1_present_speed
         
         
-        # if sendspeed == 0 and abs(dxl_0_present_position-dxl_1_present_position)>5:
-        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_GOAL_POSITION, dxl_0_present_position)
-        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 1023) # Writes Motor 0 to Joint Mode
-        #     while abs(dxl_0_present_position-dxl_1_present_position)>5:
-        #         pass
-        #     dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_CCW_ANG_LMT, 0) # Writes Motor 0 to Wheel Mode
-
-        sendspeed = 2*dxl_0_present_speed
-        a = dxl_0_present_position_range>dxl_1_present_position_range
+        sendspeed = abs(int(1000*(dxl_0_present_position_range-last_dxl_0_present_position_range)))
+        a = dxl_0_present_position_range>dxl_1_present_position_range-.15
         b = not dirMove0
         dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_TORQUE_LIMIT,1023)
         if(a):
@@ -137,26 +127,10 @@ def run(portHandler,packetHandler):
                 sendspeed = int(sendspeed+sendspeed*sendspeed/100)   
             dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,int(dirMove0)*1023 + sendspeed)
      
-        
-        print(str(int(a)) + " Speed0:"+str(dxl_0_present_speed)+"\tSpeed1:"+str(dxl_1_present_speed)+"\tPos0:"+str(dxl_0_present_position_range)+"\tPos1:"+str(dxl_1_present_position_range)+"\trangedif:"+str(dxl_0_present_position_range-dxl_1_present_position_range))
+    
+        print(str(int(a and b)) + " Speed0:"+str(1000*(dxl_0_present_position_range-last_dxl_0_present_position_range))+"\tSpeed1:"+str(dxl_1_present_speed)+"\tPos0:"+str(dxl_0_present_position_range)+"\tPos1:"+str(dxl_1_present_position_range)+"\tsendspeed:"+str(sendspeed))
    
-        sendtoque = 2*dxl_1_present_load
 
-        # a = dxl_0_present_load>dxl_1_present_load
-        # b = not dirTor1
-        # # else: 
-        # if abs(dxl_0_present_load-dxl_1_present_load)<5:
-        #     pass
-        # elif (a and (not b)) or ((not a) and b):
-        #     sendtoque = int(sendtoque-sendtoque*sendtoque/500)
-        # else:q
-        #     sendtoque = int(sendtoque+sendtoque*sendtoque/500) 
-
-        # print("Tor0:"+str(dxl_0_tor_limit)+"\t\tToq1:"+str(dxl_1_present_load)+"\t\tLimit0:"+str(dxl_0_tor_limit)+"\t\tLimit1:"+str(dxl_1_tor_limit))
-
-        # dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_0, ADDR_MX_TORQUE_LIMIT,int(dirTor0)*1023 + sendtoque)
-
-        #      
 
 
 def start_up():                                 # Initilizes connection to motors and sets starting parmeters.
