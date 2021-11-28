@@ -99,7 +99,8 @@ def run(portHandler,packetHandler):
         last_dxl_1_present_position_range=dxl_1_present_position_range  
         dxl_0_present_position_range = (dxl_0_present_position-DXL_0_MINIMUM_POSITION_VALUE)/(DXL_0_MAXIMUM_POSITION_VALUE-DXL_0_MINIMUM_POSITION_VALUE)
         dxl_1_present_position_range = (dxl_1_present_position-DXL_1_MINIMUM_POSITION_VALUE)/(DXL_1_MAXIMUM_POSITION_VALUE-DXL_1_MINIMUM_POSITION_VALUE)
-        # sendspeed += dxl_0_present_speed-dxl_1_present_speed
+
+        S
         dirMove0 = dxl_0_present_position_range-last_dxl_0_present_position_range<0
         dirMove1 = dxl_1_present_position_range-last_dxl_1_present_position_range<0
         # print(dxl_0_present_speed)
@@ -128,7 +129,7 @@ def run(portHandler,packetHandler):
             dxl_comm_result0, dxl_error0 = packetHandler.write2ByteTxRx(portHandler, DXL_1, ADDR_MX_MOVE_SPEED,int(dirMove0)*1023 + sendspeed)
      
     
-        print(str(int(a and b)) + " Speed0:"+str(1000*(dxl_0_present_position_range-last_dxl_0_present_position_range))+"\tSpeed1:"+str(dxl_1_present_speed)+"\tPos0:"+str(dxl_0_present_position_range)+"\tPos1:"+str(dxl_1_present_position_range)+"\tsendspeed:"+str(sendspeed))
+        #print(str(int(a and b)) + " Speed0:"+str(1000*(dxl_0_present_position_range-last_dxl_0_present_position_range))+"\tSpeed1:"+str(dxl_1_present_speed)+"\tPos0:"+str(dxl_0_present_position_range)+"\tPos1:"+str(dxl_1_present_position_range)+"\tsendspeed:"+str(sendspeed))
    
 
 
